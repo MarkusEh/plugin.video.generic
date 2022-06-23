@@ -73,7 +73,11 @@ def play_video(url):
           idx = xbmcgui.Dialog().select('Select Video',vlist)
           if idx >= 0:
             vid.selectStream(idx)
-      StreamUtils.play(vid.streamURL())
+#     StreamUtils.play(vid.streamURL())
+      li = xbmcgui.ListItem()
+      li.setProperty('IsPlayable', 'true')
+      li.setPath(vid.streamURL() )
+      xbmcplugin.setResolvedUrl(int(sys.argv[ 1 ]),True,li)
 
 mode = args.get('mode', ['folder0'])
 
@@ -197,14 +201,18 @@ class site_parse_interface:
 # title requirements are met
     
 # all checks done, match found
-    if self.title == "": self.title = os.path.basename(self.mv_href)
+    if self.title == "":
+      if self.mv_href.endswith("/"):
+        self.title = os.path.basename(os.path.dirname(self.mv_href))
+      else:
+        self.title = os.path.basename(self.mv_href)
     if self.img_url.startswith("//"):
       self.img_url = "https:" + self.img_url
-    if not self.img_url.startswith("http"):
+    if (not self.img_url.startswith("http")) and (self.img_url != ""):
       self.img_url = base_url + self.img_url
     if self.mv_href.startswith("//"):
       self.mv_href = "https:" + self.mv_href
-    if not self.mv_href.startswith("http"):
+    if (not self.mv_href.startswith("http")) and (self.mv_href != ""):
       self.mv_href = base_url + self.mv_href
     self.action_ = match_check.get("action", "video")
     self.ignore_ = False
@@ -219,9 +227,11 @@ class site_parse_interface:
   def img(self) -> str:
     return self.img_url
 
-def line_action(parseInterface, site, dict_):
+def line_action(parseInterface, site, hrefs, dict_):
     if parseInterface.action() == "break": return
     mv_href = parseInterface.url()
+    if mv_href in hrefs: return
+    hrefs.add(mv_href)
     if parseInterface.action() == "video_get_href_img":
       img_thumbnail_url = dict_.get(mv_href, "")
     else:
@@ -233,7 +243,7 @@ def line_action(parseInterface, site, dict_):
     is_folder = parseInterface.action() == "folder"
 
     xbmc.log("mv_href: " + str(mv_href), xbmc.LOGERROR)
-    xbmc.log("mv_title: {}".format(str(mv_title)), xbmc.LOGERROR)
+    xbmc.log("mv_title: \"{}\"".format(str(mv_title)), xbmc.LOGERROR)
     xbmc.log("img_thumbnail_url: " + str(img_thumbnail_url), xbmc.LOGERROR)
     li = xbmcgui.ListItem(insertLineBreakIfNeeded(mv_title, list_width), offscreen = True)
     
@@ -262,11 +272,12 @@ def line_action(parseInterface, site, dict_):
 
 def foldersVideos(soupeddata, site, site_json, display_folders):
   dict_ = {}
+  hrefs = set()
   for x in soupeddata.find_all("a"):
     for match_check in site_json["a_tags"]:
       parseInterface = site_parse_interface(x, match_check, site_json["url"])
       if parseInterface.ignore(): continue
-      line_action(parseInterface, site, dict_)
+      line_action(parseInterface, site, hrefs, dict_)
       break
 
   xbmcplugin.addSortMethod(addon_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
