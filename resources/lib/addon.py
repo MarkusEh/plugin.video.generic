@@ -153,6 +153,45 @@ if mode[0] == 'folder0':
                                 listitem=li, isFolder=True)
   xbmcplugin.endOfDirectory(addon_handle)
 
+def ignoreUrl(a_tag, base_url):
+  mv_href = a_tag.get("href")
+  if mv_href is None: return True
+  if mv_href == "": return True
+  if mv_href == "#": return True
+  if mv_href == "/": return True
+  if mv_href ==  base_url      : return True
+  if mv_href ==  base_url + "/": return True
+  if mv_href.startswith("http") and not mv_href.startswith(base_url): return True
+  if mv_href.startswith("//") and not mv_href.startswith(base_url[6:]): return True
+  if mv_href.find("javascript:") != -1: return True
+  return False
+
+def defaultImg(a_tag):
+  mv_image = a_tag.find("img")
+  if not mv_image is None:
+    for img_url_tag in ["data-src", "data-original", "data-image", "src"]:
+      img_url = mv_image.get(img_url_tag, "")
+      if img_url != "": return img_url
+  return ""
+
+def defaultTitle(a_tag):
+  for a_title_tag in ["title", "alt", "data-statistic-name"]:
+    title = a_tag.get(a_title_tag, "")
+    if title != "": return title
+  mv_image = a_tag.find("img")
+  if not mv_image is None:
+    for img_title_tag in ["alt"]:
+      title = mv_image.get(img_title_tag, "")
+      if title != "": return title
+  return a_tag.text
+
+def sanitizeUrl(url, base_url):
+  if url == "": return url
+  if url.startswith("http"): return url
+  if url.startswith("//"): return "https:" + url
+  if url[0] == "/": return base_url + url
+  else: return f"{base_url}/{url}"
+
 class site_parse_interface:
   def __init__(self, a_tag, match_check, base_url):
     self.ignore_ = True
@@ -164,13 +203,6 @@ class site_parse_interface:
         if not class_m in class_: return
 # all required classes are in the class attibute
     self.mv_href = a_tag.get("href")
-    if self.mv_href is None: return
-    if self.mv_href == "": return
-    if self.mv_href == "#": return
-    if self.mv_href == "/": return
-    if self.mv_href ==  base_url      : return
-    if self.mv_href ==  base_url + "/": return
-    if self.mv_href.startswith("http") and not self.mv_href.startswith(base_url): return
     href_contains_l = match_check.get("href_contains")
     if not href_contains_l is None:
       for href_contains in href_contains_l:
@@ -179,49 +211,62 @@ class site_parse_interface:
         else:
           if self.mv_href.find(href_contains) == -1: return
 # href requirements are met
-    img_url_tag = match_check.get("img_url_tag")
-    if not img_url_tag is None:
-      mv_image = a_tag.find("img")
-      if mv_image is None: return
-      self.img_url = mv_image.get(img_url_tag)
-      if self.img_url is None: return
-      if self.img_url == "": return
-      img_title_tag = match_check.get("img_title_tag")
-      if not img_title_tag is None:
-        self.title = mv_image.get(img_title_tag)
-        if self.title is None: return
-    else: self.img_url = ""
+    if "img_url_tag" in match_check.keys() or "img_title_tag" in match_check.keys():
+      img_url_tag = match_check.get("img_url_tag")
+      if not img_url_tag is None:
+        mv_image = a_tag.find("img")
+        if mv_image is None: return
+        self.img_url = mv_image.get(img_url_tag)
+        if self.img_url is None: return
+        if self.img_url == "": return
+        img_title_tag = match_check.get("img_title_tag")
+        if not img_title_tag is None:
+          self.title = mv_image.get(img_title_tag)
+          if self.title is None: return
+      else: self.img_url = ""
+    else:
+      self.img_url = defaultImg(a_tag)
+    if self.img_url == "":
+      a_script = a_tag.find("script")
+      if not a_script is None:
+        xbmc.log("script found, url:  \"{}\"".format(str( self.mv_href )), xbmc.LOGERROR)
+#       xbmc.log("script found, text: \"{}\"".format(str( a_script.text )), xbmc.LOGERROR)
+        sp = a_script.text.find("<img src=\"")
+        if sp != -1:
+          xbmc.log("script + img found, url: \"{}\"".format(str( self.mv_href )), xbmc.LOGERROR)
+          h = a_script.text[sp + 10:]
+          hf = h.find("\"")
+          if hf != -1: self.img_url = h[:hf-1]
 # img_url_tag and img_title_tag requirements are met
     self.title = ""
-    a_title = match_check.get("a_title")
-    if not a_title is None:
-      if a_title:
-        self.title = a_tag.text
-    a_title_tag = match_check.get("a_title_tag")
-    if not a_title_tag is None:
-      self.title = a_tag.get(a_title_tag)
-      if self.title is None: return
-    if self.title == "Login": return
-    if self.title == "Sign up": return
-# title requirements are met
-    
-# all checks done, match found
+    if "a_title" in match_check.keys() or "a_title_tag" in match_check.keys():
+      a_title = match_check.get("a_title")
+      if not a_title is None:
+        if a_title:
+          self.title = a_tag.text
+      a_title_tag = match_check.get("a_title_tag")
+      if not a_title_tag is None:
+        self.title = a_tag.get(a_title_tag)
+        if self.title is None: return
+    else:
+      self.title = defaultTitle(a_tag)
     if self.title == "":
       if self.mv_href.endswith("/"):
         self.title = os.path.basename(os.path.dirname(self.mv_href))
       else:
         self.title = os.path.basename(self.mv_href)
-    if self.img_url.startswith("//"):
-      self.img_url = "https:" + self.img_url
-    if (not self.img_url.startswith("http")) and (self.img_url != ""):
-      if self.img_url[0] == "/": self.img_url = base_url + self.img_url
-      else: self.img_url = f"{base_url}/{self.img_url}"
-#     else: self.img_url = "{}/{}".format(base_url, self.img_url)
-    if self.mv_href.startswith("//"):
-      self.mv_href = "https:" + self.mv_href
-    if (not self.mv_href.startswith("http")) and (self.mv_href != ""):
-      if self.mv_href[0] == "/": self.mv_href = base_url + self.mv_href
-      else: self.mv_href = f"{base_url}/{self.mv_href}"
+    self.title = self.title.replace('\n','')
+    self.title.strip()
+# ignore intries with some titles:
+    for excludedTitle in ["Login", "Logout", "Account", "Sign up", "Signup", "Developers", "Contacts", "DMCA"]:
+      if self.title == excludedTitle: return
+    for excludedTitlePart in ["upload", "signin", "signup"]:
+      if self.title.find(excludedTitlePart) != -1: return
+# title requirements are met
+    
+# all checks done, match found
+    self.img_url = sanitizeUrl(self.img_url, base_url)
+    self.mv_href = sanitizeUrl(self.mv_href, base_url)
     self.action_ = match_check.get("action", "video")
     self.ignore_ = False
   def action(self) -> bool:
@@ -252,8 +297,8 @@ def line_action(parseInterface, site, hrefs, dict_):
     mv_title  = parseInterface.name()
     is_folder = parseInterface.action().startswith("folder")
 
-    xbmc.log("mv_href: " + str(mv_href), xbmc.LOGERROR)
-    xbmc.log("mv_title: \"{}\"".format(str(mv_title)), xbmc.LOGERROR)
+    xbmc.log("mv_href: " + str([mv_href]), xbmc.LOGERROR)
+    xbmc.log("mv_title: \"{}\"".format(str([mv_title])), xbmc.LOGERROR)
     xbmc.log("img_thumbnail_url: " + str(img_thumbnail_url), xbmc.LOGERROR)
     li = xbmcgui.ListItem(insertLineBreakIfNeeded(mv_title, list_width), offscreen = True)
     
@@ -284,11 +329,17 @@ def foldersVideos(soupeddata, site, site_json, display_folders):
   dict_ = {}
   hrefs = set()
   for x in soupeddata.find_all("a"):
+    if ignoreUrl(x, site_json["url"]): continue
+    found = False
     for match_check in site_json["a_tags"]:
       parseInterface = site_parse_interface(x, match_check, site_json["url"])
       if parseInterface.ignore(): continue
+      found = True
       line_action(parseInterface, site, hrefs, dict_)
       break
+    if not found:
+      parseInterface = site_parse_interface(x, {"action": "folder"}, site_json["url"])
+      if not parseInterface.ignore(): line_action(parseInterface, site, hrefs, dict_)
 
   xbmcplugin.addSortMethod(addon_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
   xbmcplugin.endOfDirectory(addon_handle)
