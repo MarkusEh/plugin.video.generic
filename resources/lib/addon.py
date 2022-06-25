@@ -73,11 +73,11 @@ def play_video(url):
           idx = xbmcgui.Dialog().select('Select Video',vlist)
           if idx >= 0:
             vid.selectStream(idx)
-#     StreamUtils.play(vid.streamURL())
-      li = xbmcgui.ListItem()
-      li.setProperty('IsPlayable', 'true')
-      li.setPath(vid.streamURL() )
-      xbmcplugin.setResolvedUrl(int(sys.argv[ 1 ]),True,li)
+      StreamUtils.play(vid.streamURL())
+#     li = xbmcgui.ListItem()
+#     li.setProperty('IsPlayable', 'true')
+#     li.setPath(vid.streamURL() )
+#     xbmcplugin.setResolvedUrl(int(sys.argv[ 1 ]),True,li)
 
 mode = args.get('mode', ['folder0'])
 
@@ -168,6 +168,9 @@ class site_parse_interface:
     if self.mv_href == "": return
     if self.mv_href == "#": return
     if self.mv_href == "/": return
+    if self.mv_href ==  base_url      : return
+    if self.mv_href ==  base_url + "/": return
+    if self.mv_href.startswith("http") and not self.mv_href.startswith(base_url): return
     href_contains_l = match_check.get("href_contains")
     if not href_contains_l is None:
       for href_contains in href_contains_l:
@@ -198,6 +201,8 @@ class site_parse_interface:
     if not a_title_tag is None:
       self.title = a_tag.get(a_title_tag)
       if self.title is None: return
+    if self.title == "Login": return
+    if self.title == "Sign up": return
 # title requirements are met
     
 # all checks done, match found
@@ -209,11 +214,14 @@ class site_parse_interface:
     if self.img_url.startswith("//"):
       self.img_url = "https:" + self.img_url
     if (not self.img_url.startswith("http")) and (self.img_url != ""):
-      self.img_url = base_url + self.img_url
+      if self.img_url[0] == "/": self.img_url = base_url + self.img_url
+      else: self.img_url = f"{base_url}/{self.img_url}"
+#     else: self.img_url = "{}/{}".format(base_url, self.img_url)
     if self.mv_href.startswith("//"):
       self.mv_href = "https:" + self.mv_href
     if (not self.mv_href.startswith("http")) and (self.mv_href != ""):
-      self.mv_href = base_url + self.mv_href
+      if self.mv_href[0] == "/": self.mv_href = base_url + self.mv_href
+      else: self.mv_href = f"{base_url}/{self.mv_href}"
     self.action_ = match_check.get("action", "video")
     self.ignore_ = False
   def action(self) -> bool:
@@ -230,17 +238,19 @@ class site_parse_interface:
 def line_action(parseInterface, site, hrefs, dict_):
     if parseInterface.action() == "break": return
     mv_href = parseInterface.url()
-    if mv_href in hrefs: return
-    hrefs.add(mv_href)
-    if parseInterface.action() == "video_get_href_img":
+    if parseInterface.action().endswith("_get_href_img"):
       img_thumbnail_url = dict_.get(mv_href, "")
     else:
       img_thumbnail_url = parseInterface.img()
     if parseInterface.action() == "href_img":
       dict_[mv_href] = img_thumbnail_url
+      xbmc.log("href_img: mv_href: " + str(mv_href), xbmc.LOGERROR)
+      xbmc.log("img_thumbnail_url: " + str(img_thumbnail_url), xbmc.LOGERROR)
       return
+    if mv_href in hrefs: return
+    hrefs.add(mv_href)
     mv_title  = parseInterface.name()
-    is_folder = parseInterface.action() == "folder"
+    is_folder = parseInterface.action().startswith("folder")
 
     xbmc.log("mv_href: " + str(mv_href), xbmc.LOGERROR)
     xbmc.log("mv_title: \"{}\"".format(str(mv_title)), xbmc.LOGERROR)
