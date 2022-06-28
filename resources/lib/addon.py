@@ -153,8 +153,8 @@ if mode[0] == 'folder0':
                                 listitem=li, isFolder=True)
   xbmcplugin.endOfDirectory(addon_handle)
 
-def ignoreUrl(a_tag, base_url):
-  mv_href = a_tag.get("href")
+def ignoreUrl(tag, attribute, base_url):
+  mv_href = tag.get(attribute)
   if mv_href is None: return True
   if mv_href == "": return True
   if mv_href == "#": return True
@@ -192,15 +192,22 @@ def sanitizeUrl(url, base_url):
   if url[0] == "/": return base_url + url
   else: return f"{base_url}/{url}"
 
+def checkAttribute(attribute, tag, match_check) -> bool:
+# all values listed in attribute + "es" in match_check are required
+# return true if all required values are available in attribute of tag
+    requiredAttributeValues = match_check.get(attribute + "es")
+    if requiredAttributeValues is None: return True
+
+    attributeValue = tag.get(attribute)
+    if attributeValue is None: return False
+    for requiredAttributeValue in requiredAttributeValues:
+      if not requiredAttributeValue in attributeValue: return False
+    return True
+
 class site_parse_interface:
   def __init__(self, a_tag, match_check, base_url):
     self.ignore_ = True
-    classes = match_check.get("classes")
-    if not classes is None:
-      class_ = a_tag.get("class")
-      if class_ is None: return
-      for class_m in classes:
-        if not class_m in class_: return
+    if not checkAttribute("class", a_tag, match_check): return
 # all required classes are in the class attibute
     self.mv_href = a_tag.get("href")
     href_contains_l = match_check.get("href_contains")
@@ -280,6 +287,73 @@ class site_parse_interface:
   def img(self) -> str:
     return self.img_url
 
+class site_parse_interface_others(site_parse_interface):
+  def __init__(self, tag, match_check, base_url):
+    self.ignore_ = True
+    if not checkAttribute("class", tag, match_check): return
+# all required classes are in the class attibute
+    href_attribute = match_check.get("href_attribute")
+    if href_attribute is None:
+      xbmc.log("\"href_attribute\" missing in \"option_tags\"", xbmc.LOGERROR)
+      return
+    if ignoreUrl(tag, href_attribute, base_url): return
+    self.mv_href = tag.get(href_attribute)
+    href_contains_l = match_check.get("href_contains")
+    if not href_contains_l is None:
+      for href_contains in href_contains_l:
+        if href_contains[0] == "^":
+          if not self.mv_href.startswith(href_contains[1:]): return
+        else:
+          if self.mv_href.find(href_contains) == -1: return
+# href requirements are met
+    if "img_url_tag" in match_check.keys() or "img_title_tag" in match_check.keys():
+      img_url_tag = match_check.get("img_url_tag")
+      if not img_url_tag is None:
+        mv_image = tag.find("img")
+        if mv_image is None: return
+        self.img_url = mv_image.get(img_url_tag)
+        if self.img_url is None: return
+        if self.img_url == "": return
+        img_title_tag = match_check.get("img_title_tag")
+        if not img_title_tag is None:
+          self.title = mv_image.get(img_title_tag)
+          if self.title is None: return
+      else: self.img_url = ""
+    else:
+      self.img_url = defaultImg(tag)
+# img_url_tag and img_title_tag requirements are met
+    self.title = ""
+    if "title_attribute" in match_check.keys() or "title_text" in match_check.keys():
+      title_text = match_check.get("title_text")
+      if not title_text is None:
+        if title_text:
+          self.title = tag.text
+      title_tag = match_check.get("title_attribute")
+      if not title_tag is None:
+        self.title = tag.get(title_tag)
+        if self.title is None: return
+    else:
+      self.title = defaultTitle(a_tag)
+    if self.title == "":
+      if self.mv_href.endswith("/"):
+        self.title = os.path.basename(os.path.dirname(self.mv_href))
+      else:
+        self.title = os.path.basename(self.mv_href)
+    self.title = self.title.replace('\n','')
+    self.title.strip()
+# ignore intries with some titles:
+    for excludedTitle in ["Login", "Logout", "Account", "Sign up", "Signup", "Developers", "Contacts", "DMCA"]:
+      if self.title == excludedTitle: return
+    for excludedTitlePart in ["upload", "signin", "signup"]:
+      if self.title.find(excludedTitlePart) != -1: return
+# title requirements are met
+    
+# all checks done, match found
+    self.img_url = sanitizeUrl(self.img_url, base_url)
+    self.mv_href = sanitizeUrl(self.mv_href, base_url)
+    self.action_ = match_check.get("action", "video")
+    self.ignore_ = False
+
 def line_action(parseInterface, site, hrefs, dict_):
     if parseInterface.action() == "break": return
     mv_href = parseInterface.url()
@@ -297,12 +371,14 @@ def line_action(parseInterface, site, hrefs, dict_):
     mv_title  = parseInterface.name()
     is_folder = parseInterface.action().startswith("folder")
 
+    mv_title_lb = insertLineBreakIfNeeded(mv_title, list_width)
     xbmc.log("mv_href: " + str([mv_href]), xbmc.LOGERROR)
-    xbmc.log("mv_title: \"{}\"".format(str([mv_title])), xbmc.LOGERROR)
+    xbmc.log("mv_title:    \"{}\"".format(str([mv_title])), xbmc.LOGERROR)
+    xbmc.log("mv_title_lb: \"{}\"".format(str([mv_title_lb])), xbmc.LOGERROR)
     xbmc.log("img_thumbnail_url: " + str(img_thumbnail_url), xbmc.LOGERROR)
-    li = xbmcgui.ListItem(insertLineBreakIfNeeded(mv_title, list_width), offscreen = True)
+    li = xbmcgui.ListItem(mv_title_lb, offscreen = True)
     
-    li.setInfo(type='video', infoLabels={'plot': "{}\n{}\n{}".format(mv_title, mv_href, img_thumbnail_url), 'title': mv_title})
+    li.setInfo(type='video', infoLabels={'plot': "{}\n{}\n{}".format(mv_title, mv_href, img_thumbnail_url), 'title': mv_title_lb})
 
 # fanart: Hintergrund unter der Liste. Auch Bild im fanart Anzeigemodus
 # clearlogo: Als Bild waehrend der Wiedergabe rechts oben, anstelle des Titels
@@ -329,7 +405,7 @@ def foldersVideos(soupeddata, site, site_json, display_folders):
   dict_ = {}
   hrefs = set()
   for x in soupeddata.find_all("a"):
-    if ignoreUrl(x, site_json["url"]): continue
+    if ignoreUrl(x, "href", site_json["url"]): continue
     found = False
     for match_check in site_json["a_tags"]:
       parseInterface = site_parse_interface(x, match_check, site_json["url"])
@@ -340,6 +416,15 @@ def foldersVideos(soupeddata, site, site_json, display_folders):
     if not found:
       parseInterface = site_parse_interface(x, {"action": "folder"}, site_json["url"])
       if not parseInterface.ignore(): line_action(parseInterface, site, hrefs, dict_)
+
+  match_checks = site_json.get("option_tags")
+  if not match_checks is None:
+    for x in soupeddata.find_all("option"):
+      for match_check in match_checks:
+        parseInterface = site_parse_interface_others(x, match_check, site_json["url"])
+        if parseInterface.ignore(): continue
+        line_action(parseInterface, site, hrefs, dict_)
+
 
   xbmcplugin.addSortMethod(addon_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
   xbmcplugin.endOfDirectory(addon_handle)
