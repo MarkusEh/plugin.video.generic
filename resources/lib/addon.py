@@ -169,19 +169,19 @@ def ignoreUrl(tag, attribute, base_url):
 def defaultImg(a_tag):
   mv_image = a_tag.find("img")
   if not mv_image is None:
-    for img_url_tag in ["data-src", "data-original", "data-image", "src"]:
-      img_url = mv_image.get(img_url_tag, "")
+    for img_url_attribute in ["data-src", "data-original", "data-image", "src"]:
+      img_url = mv_image.get(img_url_attribute, "")
       if img_url != "": return img_url
   return ""
 
 def defaultTitle(a_tag):
-  for a_title_tag in ["title", "alt", "data-statistic-name"]:
-    title = a_tag.get(a_title_tag, "")
+  for a_title_attribute in ["title", "alt", "data-statistic-name"]:
+    title = a_tag.get(a_title_attribute, "")
     if title != "": return title
   mv_image = a_tag.find("img")
   if not mv_image is None:
-    for img_title_tag in ["alt"]:
-      title = mv_image.get(img_title_tag, "")
+    for img_title_attribute in ["alt"]:
+      title = mv_image.get(img_title_attribute, "")
       if title != "": return title
   return a_tag.text
 
@@ -204,35 +204,27 @@ def checkAttribute(attribute, tag, match_check) -> bool:
       if not requiredAttributeValue in attributeValue: return False
     return True
 
+def checkHref(href, match_check) -> bool:
+# return true if href matches all href requirements defined in match_check
+    href_contains_l = match_check.get("href_contains")
+    if href_contains_l is None: return True
+    for href_contains in href_contains_l:
+      if href_contains[0] == "^":
+        if not href.startswith(href_contains[1:]): return False
+      else:
+        if href.find(href_contains) == -1: return False
+    return True
+
 class site_parse_interface:
   def __init__(self, a_tag, match_check, base_url):
     self.ignore_ = True
+    self.title = ""
     if not checkAttribute("class", a_tag, match_check): return
 # all required classes are in the class attibute
     self.mv_href = a_tag.get("href")
-    href_contains_l = match_check.get("href_contains")
-    if not href_contains_l is None:
-      for href_contains in href_contains_l:
-        if href_contains[0] == "^":
-          if not self.mv_href.startswith(href_contains[1:]): return
-        else:
-          if self.mv_href.find(href_contains) == -1: return
+    if not checkHref(self.mv_href, match_check): return
 # href requirements are met
-    if "img_url_tag" in match_check.keys() or "img_title_tag" in match_check.keys():
-      img_url_tag = match_check.get("img_url_tag")
-      if not img_url_tag is None:
-        mv_image = a_tag.find("img")
-        if mv_image is None: return
-        self.img_url = mv_image.get(img_url_tag)
-        if self.img_url is None: return
-        if self.img_url == "": return
-        img_title_tag = match_check.get("img_title_tag")
-        if not img_title_tag is None:
-          self.title = mv_image.get(img_title_tag)
-          if self.title is None: return
-      else: self.img_url = ""
-    else:
-      self.img_url = defaultImg(a_tag)
+    if not self.checkImg(a_tag, match_check): return
     if self.img_url == "":
       a_script = a_tag.find("script")
       if not a_script is None:
@@ -244,31 +236,8 @@ class site_parse_interface:
           h = a_script.text[sp + 10:]
           hf = h.find("\"")
           if hf != -1: self.img_url = h[:hf-1]
-# img_url_tag and img_title_tag requirements are met
-    self.title = ""
-    if "a_title" in match_check.keys() or "a_title_tag" in match_check.keys():
-      a_title = match_check.get("a_title")
-      if not a_title is None:
-        if a_title:
-          self.title = a_tag.text
-      a_title_tag = match_check.get("a_title_tag")
-      if not a_title_tag is None:
-        self.title = a_tag.get(a_title_tag)
-        if self.title is None: return
-    else:
-      self.title = defaultTitle(a_tag)
-    if self.title == "":
-      if self.mv_href.endswith("/"):
-        self.title = os.path.basename(os.path.dirname(self.mv_href))
-      else:
-        self.title = os.path.basename(self.mv_href)
-    self.title = self.title.replace('\n','')
-    self.title.strip()
-# ignore intries with some titles:
-    for excludedTitle in ["Login", "Logout", "Account", "Sign up", "Signup", "Developers", "Contacts", "DMCA"]:
-      if self.title == excludedTitle: return
-    for excludedTitlePart in ["upload", "signin", "signup"]:
-      if self.title.find(excludedTitlePart) != -1: return
+# img_url_attribute and img_title_attribute requirements are met
+    if not self.checkTitle(a_tag, match_check, "a_title", "a_title_attribute"): return
 # title requirements are met
     
 # all checks done, match found
@@ -276,6 +245,55 @@ class site_parse_interface:
     self.mv_href = sanitizeUrl(self.mv_href, base_url)
     self.action_ = match_check.get("action", "video")
     self.ignore_ = False
+
+  def checkImg(self, tag, match_check) -> bool:
+# return true if the img tag matches all requirements defined in match_check
+# also, set self.img_url and self.title if data for that are available in the img tag
+    if "img_url_attribute" in match_check.keys() or "img_title_attribute" in match_check.keys():
+      mv_image = tag.find("img")
+      if mv_image is None: return False
+      img_url_attribute = match_check.get("img_url_attribute")
+      if not img_url_attribute is None:
+        self.img_url = mv_image.get(img_url_attribute)
+        if self.img_url is None: return False
+        if self.img_url == "": return False
+      else: self.img_url = ""
+      img_title_attribute = match_check.get("img_title_attribute")
+      if not img_title_attribute is None:
+        self.title = mv_image.get(img_title_attribute)
+        if self.title is None: return False
+    else:
+      self.img_url = defaultImg(tag)
+    return True
+  def checkTitle(self, tag, match_check, title_text, title_attribute) -> bool:
+# return true if the title matches all requirements defined in match_check, and generic requirements
+# also, set self.title
+#   if "a_title" in match_check.keys() or "a_title_attribute" in match_check.keys():
+    if title_text in match_check.keys() or title_attribute in match_check.keys():
+      a_title = match_check.get(title_text)
+      if not a_title is None:
+        if a_title: self.title = tag.text
+      a_title_attribute = match_check.get(title_attribute)
+      if not a_title_attribute is None:
+        self.title = a_tag.get(a_title_attribute)
+        if self.title is None: return False
+    else:
+      if self.title == "": self.title = defaultTitle(tag)
+    if self.title == "":
+# still no title found, set title to basename of href
+      if self.mv_href.endswith("/"):
+        self.title = os.path.basename(os.path.dirname(self.mv_href))
+      else:
+        self.title = os.path.basename(self.mv_href)
+# sanitize title
+    self.title = self.title.replace('\n','')
+    self.title.strip()
+# ignore entries with some titles:
+    for excludedTitle in ["Login", "Logout", "Account", "Sign up", "Signup", "Developers", "Contacts", "DMCA"]:
+      if self.title == excludedTitle: return False
+    for excludedTitlePart in ["upload", "signin", "signup"]:
+      if self.title.find(excludedTitlePart) != -1: return False
+    return True
   def action(self) -> bool:
     return self.action_
   def ignore(self) -> bool:
@@ -290,6 +308,7 @@ class site_parse_interface:
 class site_parse_interface_others(site_parse_interface):
   def __init__(self, tag, match_check, base_url):
     self.ignore_ = True
+    self.title = ""
     if not checkAttribute("class", tag, match_check): return
 # all required classes are in the class attibute
     href_attribute = match_check.get("href_attribute")
@@ -298,54 +317,11 @@ class site_parse_interface_others(site_parse_interface):
       return
     if ignoreUrl(tag, href_attribute, base_url): return
     self.mv_href = tag.get(href_attribute)
-    href_contains_l = match_check.get("href_contains")
-    if not href_contains_l is None:
-      for href_contains in href_contains_l:
-        if href_contains[0] == "^":
-          if not self.mv_href.startswith(href_contains[1:]): return
-        else:
-          if self.mv_href.find(href_contains) == -1: return
+    if not checkHref(self.mv_href, match_check): return
 # href requirements are met
-    if "img_url_tag" in match_check.keys() or "img_title_tag" in match_check.keys():
-      img_url_tag = match_check.get("img_url_tag")
-      if not img_url_tag is None:
-        mv_image = tag.find("img")
-        if mv_image is None: return
-        self.img_url = mv_image.get(img_url_tag)
-        if self.img_url is None: return
-        if self.img_url == "": return
-        img_title_tag = match_check.get("img_title_tag")
-        if not img_title_tag is None:
-          self.title = mv_image.get(img_title_tag)
-          if self.title is None: return
-      else: self.img_url = ""
-    else:
-      self.img_url = defaultImg(tag)
-# img_url_tag and img_title_tag requirements are met
-    self.title = ""
-    if "title_attribute" in match_check.keys() or "title_text" in match_check.keys():
-      title_text = match_check.get("title_text")
-      if not title_text is None:
-        if title_text:
-          self.title = tag.text
-      title_tag = match_check.get("title_attribute")
-      if not title_tag is None:
-        self.title = tag.get(title_tag)
-        if self.title is None: return
-    else:
-      self.title = defaultTitle(a_tag)
-    if self.title == "":
-      if self.mv_href.endswith("/"):
-        self.title = os.path.basename(os.path.dirname(self.mv_href))
-      else:
-        self.title = os.path.basename(self.mv_href)
-    self.title = self.title.replace('\n','')
-    self.title.strip()
-# ignore intries with some titles:
-    for excludedTitle in ["Login", "Logout", "Account", "Sign up", "Signup", "Developers", "Contacts", "DMCA"]:
-      if self.title == excludedTitle: return
-    for excludedTitlePart in ["upload", "signin", "signup"]:
-      if self.title.find(excludedTitlePart) != -1: return
+    if not self.checkImg(tag, match_check): return
+# img_url_attribute and img_title_attribute requirements are met
+    if not self.checkTitle(tag, match_check, "option_title_text", "option_title_attribute"): return
 # title requirements are met
     
 # all checks done, match found
