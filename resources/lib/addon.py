@@ -164,7 +164,25 @@ def ignoreUrl(tag, attribute, base_url):
   if mv_href.startswith("http") and not mv_href.startswith(base_url): return True
   if mv_href.startswith("//") and not mv_href.startswith(base_url[6:]): return True
   if mv_href.find("javascript:") != -1: return True
+  if mv_href.endswith("contact-us"): return True
+  if mv_href.find("content-removal") != -1: return True
+  if mv_href.endswith("dmca"): return True
+  if mv_href.endswith("advertising"): return True
   return False
+
+def imgSpecial1(tag):
+  for div_tag in tag.find_all("div"):
+    attributeValue = div_tag.get("class")
+    if attributeValue is None: continue
+    if not "logo" in attributeValue: continue
+    attributeValue = div_tag.get("style")
+    if attributeValue is None: continue
+    posa = attributeValue.find("https://")
+    if posa == -1: continue
+    pose = attributeValue[posa:].find("'")
+    if pose == -1: continue
+    return attributeValue[posa:posa+pose]
+  return ""
 
 def defaultImg(a_tag):
   mv_image = a_tag.find("img")
@@ -235,7 +253,7 @@ class site_parse_interface:
           xbmc.log("script + img found, url: \"{}\"".format(str( self.mv_href )), xbmc.LOGERROR)
           h = a_script.text[sp + 10:]
           hf = h.find("\"")
-          if hf != -1: self.img_url = h[:hf-1]
+          if hf != -1: self.img_url = h[:hf]
 # img_url_attribute and img_title_attribute requirements are met
     if not self.checkTitle(a_tag, match_check, "a_title", "a_title_attribute"): return
 # title requirements are met
@@ -262,9 +280,12 @@ class site_parse_interface:
       if not img_title_attribute is None:
         self.title = mv_image.get(img_title_attribute)
         if self.title is None: return False
+    elif "img_special1" in match_check.keys():
+      self.img_url = imgSpecial1(tag)
     else:
       self.img_url = defaultImg(tag)
     return True
+
   def checkTitle(self, tag, match_check, title_text, title_attribute) -> bool:
 # return true if the title matches all requirements defined in match_check, and generic requirements
 # also, set self.title
@@ -275,7 +296,7 @@ class site_parse_interface:
         if a_title: self.title = tag.text
       a_title_attribute = match_check.get(title_attribute)
       if not a_title_attribute is None:
-        self.title = a_tag.get(a_title_attribute)
+        self.title = tag.get(a_title_attribute)
         if self.title is None: return False
     else:
       if self.title == "": self.title = defaultTitle(tag)
@@ -286,14 +307,15 @@ class site_parse_interface:
       else:
         self.title = os.path.basename(self.mv_href)
 # sanitize title
-    self.title = self.title.replace('\n','')
+    self.title = self.title.replace('\n',' ')
     self.title.strip()
 # ignore entries with some titles:
     for excludedTitle in ["Login", "Logout", "Account", "Sign up", "Signup", "Developers", "Contacts", "DMCA"]:
       if self.title == excludedTitle: return False
-    for excludedTitlePart in ["upload", "signin", "signup"]:
+    for excludedTitlePart in ["upload", "signin", "signup", "Add to"]:
       if self.title.find(excludedTitlePart) != -1: return False
     return True
+
   def action(self) -> bool:
     return self.action_
   def ignore(self) -> bool:
@@ -318,11 +340,8 @@ class site_parse_interface_others(site_parse_interface):
     if ignoreUrl(tag, href_attribute, base_url): return
     self.mv_href = tag.get(href_attribute)
     if not checkHref(self.mv_href, match_check): return
-# href requirements are met
     if not self.checkImg(tag, match_check): return
-# img_url_attribute and img_title_attribute requirements are met
     if not self.checkTitle(tag, match_check, "option_title_text", "option_title_attribute"): return
-# title requirements are met
     
 # all checks done, match found
     self.img_url = sanitizeUrl(self.img_url, base_url)
