@@ -3,8 +3,7 @@ import time
 import datetime
 import string
 import sys
-import urllib
-import urllib.parse as urlparse
+import urllib.parse
 import requests
 import json
 
@@ -24,7 +23,7 @@ from bs4 import BeautifulSoup
 #xbmc.log("sys.argv" + str(sys.argv), xbmc.LOGERROR)
 base_url = sys.argv[0]
 addon_handle = int(sys.argv[1])
-args = urlparse.parse_qs(sys.argv[2][1:])
+args = urllib.parse.parse_qs(sys.argv[2][1:])
 list_width_str = xbmcplugin.getSetting(addon_handle, "list_width")
 #xbmc.log("list_width_str: " + str(list_width_str), xbmc.LOGERROR)
 if list_width_str == '':
@@ -206,9 +205,10 @@ def defaultTitle(a_tag):
 def sanitizeUrl(url, base_url):
   if url == "": return url
   if url.startswith("http"): return url
-  if url.startswith("//"): return "https:" + url
-  if url[0] == "/": return base_url + url
-  else: return f"{base_url}/{url}"
+  urle = urllib.parse.quote(url)
+  if urle.startswith("//"): return "https:" + urle
+  if urle[0] == "/": return base_url + urle
+  else: return f"{base_url}/{urle}"
 
 def checkAttribute(attribute, tag, match_check) -> bool:
 # all values listed in attribute + "es" in match_check are required
@@ -373,7 +373,7 @@ def line_action(parseInterface, site, hrefs, dict_):
     xbmc.log("img_thumbnail_url: " + str(img_thumbnail_url), xbmc.LOGERROR)
     li = xbmcgui.ListItem(mv_title_lb, offscreen = True)
     
-    li.setInfo(type='video', infoLabels={'plot': "{}\n{}\n{}".format(mv_title, mv_href, img_thumbnail_url), 'title': mv_title_lb})
+    li.setInfo(type='video', infoLabels={'plot': "{}\n{}\n{}".format(mv_title, mv_href, insertLineBreakIfNeeded(img_thumbnail_url, 80)), 'title': mv_title_lb})
 
 # fanart: Hintergrund unter der Liste. Auch Bild im fanart Anzeigemodus
 # clearlogo: Als Bild waehrend der Wiedergabe rechts oben, anstelle des Titels
@@ -431,7 +431,16 @@ if mode[0] == 'folder':
     if not site_json is None:
       display_folders = args.get('display_folders', [''])[0] == "true"
       scrape_url = args.get('scrape_url', [site_json["url"]])[0]
-      mozhdr = {'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3'}
+# see https://techpatterns.com/downloads/firefox/useragentswitcher.xml
+# e.g.: "Mozilla/5.0 (Windows NT 6.2; rv:20.0) Gecko/20121202 Firefox/20.0"
+#       "Mozilla/5.0 (X11; Linux i686 on x86_64; rv:2.0.1) Gecko/20100101 Firefox/4.0.1 Fennec/2.0.1"
+# console browser "Lynx/2.8.7dev.4 libwww-FM/2.14 SSL-MM/1.4.1 OpenSSL/0.9.8d"
+# Browsers - Linux 
+#     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/536.5 (KHTML, like Gecko) Chrome/19.0.1084.9 Safari/536.5"
+#     "Mozilla/5.0 (X11; Linux x86_64; rv:15.0) Gecko/20120724 Debian Iceweasel/15.02"
+#     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.49 Safari/537.36"
+#      mozhdr = {'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3'}
+      mozhdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/536.5 (KHTML, like Gecko) Chrome/19.0.1084.9 Safari/536.5'}
       sb_get = requests.get(scrape_url, headers = mozhdr)
     #    xbmc.log("request content: " + str(sb_get.content), xbmc.LOGERROR)
       soupeddata = BeautifulSoup(sb_get.content, "html.parser")
