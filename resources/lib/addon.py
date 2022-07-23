@@ -289,17 +289,17 @@ class site_parse_interface:
   def checkTitle(self, tag, match_check, title_text, title_attribute) -> bool:
 # return true if the title matches all requirements defined in match_check, and generic requirements
 # also, set self.title
-#   if "a_title" in match_check.keys() or "a_title_attribute" in match_check.keys():
-    if title_text in match_check.keys() or title_attribute in match_check.keys():
-      a_title = match_check.get(title_text)
-      if not a_title is None:
-        if a_title: self.title = tag.text
-      a_title_attribute = match_check.get(title_attribute)
-      if not a_title_attribute is None:
-        self.title = tag.get(a_title_attribute)
-        if self.title is None: return False
-    else:
-      if self.title == "": self.title = defaultTitle(tag)
+    if not "title_href" in match_check.keys():
+      if title_text in match_check.keys() or title_attribute in match_check.keys():
+        a_title = match_check.get(title_text)
+        if not a_title is None:
+          if a_title: self.title = tag.text
+        a_title_attribute = match_check.get(title_attribute)
+        if not a_title_attribute is None:
+          self.title = tag.get(a_title_attribute)
+          if self.title is None: return False
+      else:
+        if self.title == "": self.title = defaultTitle(tag)
     if self.title == "":
 # still no title found, set title to basename of href
       if self.mv_href.endswith("/"):
@@ -310,9 +310,9 @@ class site_parse_interface:
     self.title = self.title.replace('\n',' ')
     self.title.strip()
 # ignore entries with some titles:
-    for excludedTitle in ["Login", "Logout", "Account", "Sign up", "Signup", "Developers", "Contacts", "DMCA"]:
+    for excludedTitle in ["Login", "Logout", "Account", "Sign up", "Sign Up", "Signup", "Developers", "Contacts", "DMCA"]:
       if self.title == excludedTitle: return False
-    for excludedTitlePart in ["upload", "signin", "signup", "Add to"]:
+    for excludedTitlePart in ["upload", "signin", "signup", "Add to", "Exemption Statement"]:
       if self.title.find(excludedTitlePart) != -1: return False
     return True
 
