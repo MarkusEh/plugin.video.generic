@@ -38,6 +38,8 @@ def build_url(query):
 
 def getSites():
     j_filename = xbmcvfs.translatePath("special://userdata/addon_data/plugin.video.generic/sites.json")
+    if not xbmcvfs.exists(j_filename):
+      j_filename = xbmcvfs.translatePath("special://home/addons/plugin.video.generic/sites.json")
     with xbmcvfs.File(j_filename, "r") as j_file:
       try:
         j_string = j_file.read()

@@ -1,4 +1,5 @@
 import sys
+import urllib
 import xbmcgui
 import xbmc
 import YDStreamExtractor as StreamExtractor
@@ -6,7 +7,7 @@ import YDStreamUtils as StreamUtils
 
 xbmc.log("contextMenu: sys.argv=" + str(sys.argv), xbmc.LOGERROR)
 mode = sys.argv[1]
-url = sys.argv[2]
+url = urllib.parse.unquote(sys.argv[2])
 xbmc.log("url=" + str(url), xbmc.LOGERROR)
 xbmc.log("mode=" + str(mode), xbmc.LOGERROR)
 
