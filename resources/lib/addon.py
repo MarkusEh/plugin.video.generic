@@ -6,6 +6,7 @@ import sys
 import urllib.parse
 import requests
 import json
+import socket
 
 import xbmc
 import xbmcaddon
@@ -150,6 +151,9 @@ if mode[0] == 'folder0':
     for site in sites.keys():
       url = build_url({'mode': 'folder', 'site': site, 'display_folders': 'true' })
       li = xbmcgui.ListItem(site, offscreen = True)
+      li.setInfo(type = 'video', infoLabels={'plot': sites[site].get("description", "no description"), 'title': site})
+# possible info types: video, music, pictures, game. See https://xbmc.github.io/docs.kodi.tv/master/kodi-base/d8/d29/group__python__xbmcgui__listitem.html#ga0b71166869bda87ad744942888fb5f14
+#     xbmc.log("description {}".format(sites[site].get("description", "no description")), xbmc.LOGERROR)
       xbmcplugin.addDirectoryItem(handle=addon_handle, url=url,
                                 listitem=li, isFolder=True)
   xbmcplugin.endOfDirectory(addon_handle)
@@ -442,13 +446,17 @@ if mode[0] == 'folder':
 #     "Mozilla/5.0 (X11; Linux x86_64; rv:15.0) Gecko/20120724 Debian Iceweasel/15.02"
 #     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.49 Safari/537.36"
 #      mozhdr = {'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3'}
-      mozhdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/536.5 (KHTML, like Gecko) Chrome/19.0.1084.9 Safari/536.5'}
+#      mozhdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/536.5 (KHTML, like Gecko) Chrome/19.0.1084.9 Safari/536.5'}
+      mozhdr = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0'}
       sb_get = requests.get(scrape_url, headers = mozhdr)
-    #    xbmc.log("request content: " + str(sb_get.content), xbmc.LOGERROR)
+      xbmc.log("request content: " + str(sb_get.content), xbmc.LOGERROR)
       soupeddata = BeautifulSoup(sb_get.content, "html.parser")
       foldersVideos(soupeddata, site, site_json, display_folders)
 
 elif mode[0] == 'play':
-   final_link = args['scrape_url'][0]
-   play_video(final_link)
+   final_link = urllib.parse.unquote(args['scrape_url'][0])
+#  play_video(final_link)
+   with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+     s.connect(("192.168.178.33", 6666))
+     s.send((final_link  + "\n").encode() )
 

@@ -1,0 +1,214 @@
+{
+  "lovehomeporn": {
+    "url": "https://lovehomeporn.com",
+    "a_tags": [
+    {
+      "href_contains": ["/video/"],
+      "img_url_attribute": "data-original",
+      "img_title_attribute": "alt"
+    },
+    {
+      "href_contains": ["/video/"],
+      "title_href": true
+    },
+    {
+      "href_contains": ["/album"],
+      "action": "break"
+    },
+    {
+      "href_contains": ["/user/"],
+      "action": "break"
+    },
+    {
+      "href_contains": ["/static/"],
+      "action": "break"
+    }
+    ]
+  },
+  "pornoXO": {
+    "url": "https://www.pornoxo.com",
+    "a_tags": [
+    {
+      "href_contains": ["^/videos/"],
+      "img_url_attribute": "src",
+      "img_title_attribute": "alt"
+    }
+    ]
+  },
+  "porntube": {
+    "url": "https://www.porntube.com",
+    "search": "https://www.porntube.com/search?q={}",
+    "description": "no preview pictures",
+    "a_tags": [
+    {
+      "href_contains": ["^/videos/"],
+      "img_url_attribute": "src",
+      "img_title_attribute": "alt"
+    }
+    ]
+  },
+  "pornotube": {
+    "url": "https://www.pornotube.com",
+    "description": "nur 3 min downloads",
+    "a_tags": [
+    {
+      "classes": ["aspectWrapperInner"],
+      "href_contains": ["/video/"],
+      "img_url_attribute": "src",
+      "img_title_attribute": "alt"
+    }
+    ],
+    "option_tags": [
+    {
+      "href_attribute": "value",
+      "href_contains": ["^/orientation/"],
+      "option_title_attribute": "label",
+      "action": "folder"
+    }
+    ]
+  },
+  "spankbang": {
+    "url": "https://spankbang.com",
+    "a_tags": [
+    {
+      "classes": ["thumb"],
+      "href_contains": ["/video/"],
+      "img_url_attribute": "data-src",
+      "img_title_attribute": "alt"
+    },
+    {
+      "classes": ["ps"],
+      "img_url_attribute": "data-src",
+      "img_title_attribute": "alt",
+      "action": "folder"
+    },
+    {
+      "classes": ["thumb"],
+      "href_contains": ["^/category"],
+      "img_url_attribute": "data-src",
+      "img_title_attribute": "alt",
+      "action": "folder"
+    }
+  ]
+  },
+  "sunporno": {
+    "url": "https://www.sunporno.com",
+    "a_tags": [
+    {
+      "classes": ["pp"],
+      "img_url_attribute": "data-src",
+      "img_title_attribute": "alt"
+    },
+    {
+      "href_contains": ["%userid"],
+      "action": "break"
+    },
+    {
+      "href_contains": ["dmca.html"],
+      "action": "break"
+    }
+    ]
+  },
+  "xnxx": {
+    "url": "https://www.xnxx.com",
+    "a_tags": [
+    {
+      "href_contains": ["^/video-"],
+      "img_url_attribute": "data-src",
+      "action": "href_img"
+    },
+    {
+      "href_contains": ["^/video-"],
+      "a_title_attribute": "title",
+      "action": "video_get_href_img"
+    }
+    ]
+  },
+  "xxxymovies": {
+    "url": "https://xxxymovies.com",
+    "a_tags": [
+    {
+      "href_contains": ["^https://xxxymovies.com/cs/"],
+      "action": "break"
+    },
+    {
+      "href_contains": ["^https://xxxymovies.com/community/"],
+      "action": "break"
+    },
+    {
+      "href_contains": ["^https://xxxymovies.com/videos"],
+      "img_url_attribute": "data-original",
+      "a_title_attribute": "title"
+    },
+    {
+      "href_contains": ["^https://xxxymovies.com/"],
+      "img_url_attribute": "src",
+      "a_title_attribute": "title",
+      "action": "folder"
+    }
+    ]
+  },
+  "pornhub": {
+    "url": "https://www.pornhub.com",
+    "search": "https://www.pornhub.com/video/search?search={}",
+
+    "a_tags": [
+    {
+      "classes": ["linkVideoThumb"],
+      "img_url_attribute": "data-src",
+      "a_title_attribute": "title"
+    },
+    {
+      "href_contains": ["view_video.php"],
+      "img_url_attribute": "src",
+      "a_title_attribute": "title"
+    },
+    {
+      "classes": ["js-mixpanel"],
+      "img_url_attribute": "data-image",
+      "a_title_attribute": "alt",
+      "action": "folder"
+    },
+    {
+      "classes": ["js-mixpanel"],
+      "img_url_attribute": "data-image",
+      "action": "href_img"
+    },
+    {
+      "classes": ["js-mixpanel"],
+      "a_title": true,
+      "action": "folder_get_href_img"
+    }
+    ]
+  },
+  "yourporn": {
+    "url": "https://yourporn.movie",
+    "a_tags": [
+    {
+      "classes": ["js-gallery-link"],
+      "img_url_attribute": "data-src",
+      "img_title_attribute": "alt"
+    }
+    ]
+  },
+  "xhamster": {
+    "url": "https://xhamster.com",
+    "a_tags": [
+    {
+      "classes": ["thumb-image-container"],
+      "img_url_attribute": "src",
+      "img_title_attribute": "alt"
+    },
+    {
+      "classes": ["logo-container"],
+      "img_special1": "",
+      "action": "href_img"
+    },
+    {
+      "classes": ["title"],
+      "a_title": true,
+      "action": "folder_get_href_img"
+    }
+    ]
+  }
+}
