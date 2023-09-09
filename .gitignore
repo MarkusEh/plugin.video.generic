@@ -1,4 +1,5 @@
 sites.json
+sites.json*
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
