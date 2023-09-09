@@ -449,7 +449,7 @@ if mode[0] == 'folder':
 #      mozhdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/536.5 (KHTML, like Gecko) Chrome/19.0.1084.9 Safari/536.5'}
       mozhdr = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0'}
       sb_get = requests.get(scrape_url, headers = mozhdr)
-      xbmc.log("request content: " + str(sb_get.content), xbmc.LOGERROR)
+#      xbmc.log("request content: " + str(sb_get.content), xbmc.LOGERROR)
       soupeddata = BeautifulSoup(sb_get.content, "html.parser")
       foldersVideos(soupeddata, site, site_json, display_folders)
 
